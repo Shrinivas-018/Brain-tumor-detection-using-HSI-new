@@ -1,0 +1,10 @@
+{
+  "in_channels": 30,
+  "num_classes": 1,
+  "patch_size": 64,
+  "img_size": 256,
+  "best_val_dice": 0.09652297384253053,
+  "architecture": "UNetResidual_DeepSupervision",
+  "loss": "Dice+Focal",
+  "trained_at": "2026-10-02T14:29:47.797994"
+}

@@ -1,0 +1,11 @@
+{
+  "regions": [],
+  "num_regions": 0,
+  "total_tumor_pixels": 3,
+  "tumor_coverage_pct": 0.00457763671875,
+  "image_size": [
+    256,
+    256
+  ],
+  "sample_id": "016-04"
+}

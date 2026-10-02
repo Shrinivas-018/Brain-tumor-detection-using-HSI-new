@@ -1,0 +1,36 @@
+{
+  "regions": [
+    {
+      "centroid_px": [
+        58,
+        148
+      ],
+      "centroid_norm": [
+        0.2265625,
+        0.578125
+      ],
+      "bbox_px": [
+        40,
+        142,
+        40,
+        15
+      ],
+      "bbox_norm": [
+        0.15625,
+        0.5546875,
+        0.15625,
+        0.05859375
+      ],
+      "area_px": 234,
+      "area_pct": 0.357818603515625
+    }
+  ],
+  "num_regions": 1,
+  "total_tumor_pixels": 283,
+  "tumor_coverage_pct": 0.43182373046875,
+  "image_size": [
+    256,
+    256
+  ],
+  "sample_id": "018-02"
+}

@@ -1,0 +1,1 @@
+To replicate the results discussed in the article [**"__Hyperspectral Imaging Benchmark based on Machine Learning for Intraoperative Brain Tumour Detection__"**](https://doi.org/10.1038/s41698-023-00475-9), published in npj Precision Oncology, please use the images ranging from 004-02 to 022-03, both included. 

@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brain Tumor Digital Twin | NeuroScan AI</title>
+  <meta name="description" content="AI-powered brain tumor detection and 3D digital twin visualization for medical professionals." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Three.js via importmap -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg-primary:   #020b18;
+      --bg-secondary: #061525;
+      --bg-card:      #0a1f35;
+      --bg-glass:     rgba(10, 31, 53, 0.7);
+      --accent-blue:  #00a8ff;
+      --accent-cyan:  #00f5d4;
+      --accent-red:   #ff3d5a;
+      --accent-amber: #ffb347;
+      --text-primary: #e8f4fc;
+      --text-secondary: #7fa8c8;
+      --border:       rgba(0, 168, 255, 0.15);
+      --border-bright:rgba(0, 168, 255, 0.4);
+      --glow-blue:    0 0 20px rgba(0, 168, 255, 0.3);
+      --glow-red:     0 0 20px rgba(255, 61, 90, 0.4);
+      --glow-cyan:    0 0 20px rgba(0, 245, 212, 0.3);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Background grid animation */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,168,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,168,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Layout ──────────────────────────────────────────── */
+    .app-container {
+      display: grid;
+      grid-template-columns: 320px 1fr 300px;
+      grid-template-rows: 64px 1fr;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── Header ──────────────────────────────────────────── */
+    .header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 24px;
+      background: rgba(2, 11, 24, 0.9);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: var(--glow-blue);
+    }
+
+    .logo-text {
+      font-size: 20px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+
+    .header-badge {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: rgba(0, 245, 212, 0.1);
+      border: 1px solid rgba(0, 245, 212, 0.3);
+      font-size: 12px;
+      color: var(--accent-cyan);
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* ─── Left Panel ──────────────────────────────────────── */
+    .left-panel {
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      padding: 20px 16px;
+    }
+
+    .left-panel::-webkit-scrollbar { width: 4px; }
+    .left-panel::-webkit-scrollbar-track { background: transparent; }
+    .left-panel::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 10px;
+      margin-top: 16px;
+    }
+
+    .section-label:first-child { margin-top: 0; }
+
+    /* ─── Upload Zone ─────────────────────────────────────── */
+    .upload-zone {
+      border: 2px dashed var(--border-bright);
+      border-radius: 12px;
+      padding: 20px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: rgba(0, 168, 255, 0.03);
+    }
+
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--accent-blue);
+      background: rgba(0, 168, 255, 0.08);
+      box-shadow: var(--glow-blue);
+    }
+
+    .upload-icon { font-size: 28px; margin-bottom: 8px; }
+    .upload-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .upload-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+
+    .upload-btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 6px 16px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      border: none;
+      border-radius: 20px;
+      color: #000;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .upload-btn:hover { transform: translateY(-1px); box-shadow: var(--glow-blue); }
+
+    #glb-file-input { display: none; }
+
+    /* ─── Sample List ─────────────────────────────────────── */
+    .sample-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .sample-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sample-item:hover { border-color: var(--accent-blue); box-shadow: var(--glow-blue); }
+    .sample-item.active { border-color: var(--accent-cyan); background: rgba(0, 245, 212, 0.08); }
+
+    .sample-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .sample-dot.tumor { background: var(--accent-red); box-shadow: 0 0 8px rgba(255,61,90,0.6); }
+    .sample-dot.clear { background: #2ecc71; box-shadow: 0 0 8px rgba(46,204,113,0.6); }
+
+    .sample-name { font-size: 13px; font-weight: 600; flex: 1; }
+    .sample-meta { font-size: 10px; color: var(--text-secondary); }
+
+    /* ─── Controls ────────────────────────────────────────── */
+    .control-group { display: flex; flex-direction: column; gap: 10px; }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .control-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+
+    .slider-container { display: flex; align-items: center; gap: 8px; flex: 1; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(0,168,255,0.5);
+    }
+
+    .slider-val {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-blue);
+      min-width: 30px;
+      text-align: right;
+    }
+
+    .toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .toggle-btn.active {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+      background: rgba(0, 168, 255, 0.1);
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      color: #000;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+
+    .action-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,168,255,0.4); }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ─── 3D Viewport ─────────────────────────────────────── */
+    .viewport {
+      position: relative;
+      background: radial-gradient(ellipse at center, #061525 0%, var(--bg-primary) 70%);
+      overflow: hidden;
+    }
+
+    #three-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .viewport-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* Corner decorations */
+    .corner {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border-color: var(--accent-blue);
+      border-style: solid;
+      opacity: 0.5;
+    }
+
+    .corner-tl { top: 16px; left: 16px; border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
+    .corner-tr { top: 16px; right: 16px; border-width: 2px 2px 0 0; border-radius: 0 4px 0 0; }
+    .corner-bl { bottom: 16px; left: 16px; border-width: 0 0 2px 2px; border-radius: 0 0 0 4px; }
+    .corner-br { bottom: 16px; right: 16px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+
+    .viewport-label {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Crosshair */
+    .crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      pointer-events: none;
+      opacity: 0.3;
+    }
+
+    .crosshair::before, .crosshair::after {
+      content: '';
+      position: absolute;
+      background: var(--accent-cyan);
+    }
+
+    .crosshair::before { width: 1px; height: 100%; left: 50%; }
+    .crosshair::after { height: 1px; width: 100%; top: 50%; }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(2, 11, 24, 0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      backdrop-filter: blur(10px);
+      z-index: 50;
+      transition: opacity 0.5s ease;
+    }
+
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+    .brain-loader {
+      font-size: 64px;
+      animation: brain-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes brain-pulse {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(0,168,255,0.4)); }
+      50%       { transform: scale(1.1); filter: drop-shadow(0 0 20px rgba(0,168,255,0.8)); }
+    }
+
+    .loading-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      letter-spacing: 1px;
+    }
+
+    .loading-bar-container {
+      width: 200px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .loading-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+      border-radius: 2px;
+      animation: loading-anim 2s ease-in-out infinite;
+    }
+
+    @keyframes loading-anim {
+      0% { width: 0%; margin-left: 0; }
+      50% { width: 60%; margin-left: 20%; }
+      100% { width: 0%; margin-left: 100%; }
+    }
+
+    /* Tumor tooltip */
+    .tumor-tooltip {
+      position: absolute;
+      background: var(--bg-glass);
+      border: 1px solid var(--accent-red);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 12px;
+      backdrop-filter: blur(20px);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      box-shadow: var(--glow-red);
+      min-width: 160px;
+    }
+
+    .tumor-tooltip.visible { opacity: 1; }
+
+    .tooltip-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-red);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .tooltip-row { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 3px; }
+    .tooltip-key { color: var(--text-secondary); font-size: 11px; }
+    .tooltip-val { color: var(--text-primary); font-size: 11px; font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+
+    /* ─── Right Panel ─────────────────────────────────────── */
+    .right-panel {
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      padding: 20px 16px;
+    }
+
+    .right-panel::-webkit-scrollbar { width: 4px; }
+    .right-panel::-webkit-scrollbar-track { background: transparent; }
+    .right-panel::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+    /* ─── Stats Cards ─────────────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 10px;
+      text-align: center;
+      transition: border-color 0.3s;
+    }
+
+    .stat-card.alert { border-color: rgba(255,61,90,0.4); }
+    .stat-card.ok    { border-color: rgba(46,204,113,0.4); }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+
+    .stat-card.alert .stat-value {
+      background: linear-gradient(135deg, var(--accent-red), var(--accent-amber));
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+
+    .stat-label { font-size: 10px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
+
+    /* ─── Region Cards ────────────────────────────────────── */
+    .region-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .region-card:hover { border-color: var(--accent-red); box-shadow: var(--glow-red); }
+    .region-card.focused { border-color: var(--accent-red); background: rgba(255,61,90,0.06); }
+
+    .region-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .region-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent-red);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .region-title { font-size: 12px; font-weight: 700; }
+    .region-badge {
+      margin-left: auto;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(255,61,90,0.15);
+      border: 1px solid rgba(255,61,90,0.3);
+      font-size: 10px;
+      color: var(--accent-red);
+      font-weight: 600;
+    }
+
+    .region-coords {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .coord-pill {
+      padding: 4px 8px;
+      background: rgba(0, 168, 255, 0.08);
+      border-radius: 6px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .coord-key { color: var(--text-secondary); }
+    .coord-val { color: var(--accent-blue); font-weight: 600; }
+
+    /* ─── 2D Preview ──────────────────────────────────────── */
+    .preview-container {
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      aspect-ratio: 1;
+      background: var(--bg-card);
+      position: relative;
+    }
+
+    .preview-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .preview-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    /* ─── Alert Banner ────────────────────────────────────── */
+    .alert-banner {
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 61, 90, 0.4);
+      background: rgba(255, 61, 90, 0.08);
+      margin-bottom: 8px;
+    }
+
+    .alert-banner.no-tumor {
+      border-color: rgba(46, 204, 113, 0.4);
+      background: rgba(46, 204, 113, 0.08);
+    }
+
+    .alert-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-red);
+      margin-bottom: 4px;
+    }
+
+    .alert-banner.no-tumor .alert-title { color: #2ecc71; }
+    .alert-desc { font-size: 11px; color: var(--text-secondary); }
+
+    /* ─── Notification ────────────────────────────────────── */
+    .notification {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 13px;
+      backdrop-filter: blur(20px);
+      z-index: 1000;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      max-width: 300px;
+    }
+
+    .notification.show { transform: translateY(0); opacity: 1; }
+    .notification.success { border-color: rgba(0,245,212,0.5); }
+    .notification.error   { border-color: rgba(255,61,90,0.5); }
+
+    /* ─── Tabs ──────────────────────────────────────── */
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover {
+      color: #fff;
+    }
+    .tab-btn.active {
+      color: var(--accent-cyan);
+      border-bottom: 2px solid var(--accent-cyan);
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- ─── Header ─── -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      <span class="logo-text">NeuroScan AI</span>
+    </div>
+    <div style="margin-left: 24px; display:flex; gap:16px;">
+      <button class="tab-btn active" id="tab-3d" onclick="switchTab('3d')">3D Digital Twin</button>
+      <button class="tab-btn" id="tab-2d" onclick="switchTab('2d')">2D Analysis Maps</button>
+    </div>
+    <div class="header-badge" style="margin-left: auto;">
+      <div class="status-dot"></div>
+      HSI Hyperspectral AI — RTX 3050
+    </div>
+  </header>
+
+  <!-- ─── Left Panel ─── -->
+  <aside class="left-panel">
+    <div class="section-label" style="margin-top: 12px;">Process New HSI Data</div>
+    <div class="upload-zone" id="hsi-drop-zone" style="background: rgba(0, 245, 212, 0.05); border-color: rgba(0, 245, 212, 0.2);">
+      <div class="upload-icon">📡</div>
+      <div class="upload-title">Upload HSI (.zip)</div>
+      <div class="upload-sub">Upload raw .zip data to run inference</div>
+      <button class="upload-btn" style="background: var(--accent-cyan);" onclick="document.getElementById('hsi-file-input').click()">Upload & Run</button>
+      <input type="file" id="hsi-file-input" accept=".zip" />
+    </div>
+
+    <div class="section-label">Detection Results</div>
+    <div class="sample-list" id="sample-list">
+      <div style="font-size:12px; color: var(--text-secondary); padding: 8px; text-align:center;">
+        Run inference to see results here
+      </div>
+    </div>
+
+    <div class="section-label">Visualization</div>
+    <div class="control-group">
+      <div class="control-row">
+        <span class="control-label">Tumor Opacity</span>
+        <div class="slider-container">
+          <input type="range" id="tumor-opacity" min="0" max="100" value="85" />
+          <span class="slider-val" id="tumor-opacity-val">85%</span>
+        </div>
+      </div>
+      <div class="control-row">
+        <span class="control-label">Glow Intensity</span>
+        <div class="slider-container">
+          <input type="range" id="glow-intensity" min="0" max="100" value="70" />
+          <span class="slider-val" id="glow-intensity-val">70%</span>
+        </div>
+      </div>
+      <div class="control-row">
+        <span class="control-label">Brain Opacity</span>
+        <div class="slider-container">
+          <input type="range" id="brain-opacity" min="10" max="100" value="70" />
+          <span class="slider-val" id="brain-opacity-val">70%</span>
+        </div>
+      </div>
+      <div class="control-row">
+        <span class="control-label">Pulse Speed</span>
+        <div class="slider-container">
+          <input type="range" id="pulse-speed" min="0" max="100" value="50" />
+          <span class="slider-val" id="pulse-speed-val">50%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Display Options</div>
+    <div class="control-group">
+      <button class="toggle-btn active" id="btn-tumor" onclick="toggleFeature('tumor')">
+        🔴 Show Tumor Regions
+      </button>
+      <button class="toggle-btn active" id="btn-wireframe" onclick="toggleFeature('wireframe')">
+        ⬡ Wireframe Mode
+      </button>
+      <button class="toggle-btn" id="btn-labels" onclick="toggleFeature('labels')">
+        🏷️ Coordinate Labels
+      </button>
+      <button class="toggle-btn" id="btn-rotate" onclick="toggleFeature('rotate')">
+        🔄 Auto-Rotate
+      </button>
+    </div>
+
+    <div class="section-label" style="margin-top: 8px;">Camera</div>
+    <div class="control-group">
+      <button class="toggle-btn" onclick="resetCamera()">↩ Reset View</button>
+      <button class="toggle-btn" onclick="setView('top')">⬆ Top View</button>
+      <button class="toggle-btn" onclick="setView('side')">➡ Side View</button>
+      <button class="toggle-btn" onclick="setView('front')">⬇ Front View</button>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <button class="action-btn" onclick="loadDemoData()">⚡ Load Demo Results</button>
+    </div>
+  </aside>
+
+  <!-- ─── 3D Viewport ─── -->
+  <main class="viewport" id="viewport">
+    <canvas id="three-canvas"></canvas>
+
+    <div class="viewport-overlay">
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+      <div class="viewport-label">3D DIGITAL TWIN — NEUROCAN AI</div>
+      <div class="crosshair"></div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-overlay" id="loading-overlay">
+      <div class="brain-loader">🧠</div>
+      <div class="loading-text" id="loading-text">INITIALIZING NEURAL ENGINE...</div>
+      <div class="loading-bar-container">
+        <div class="loading-bar"></div>
+      </div>
+    </div>
+
+    <!-- Tumor Tooltip -->
+    <div class="tumor-tooltip" id="tumor-tooltip">
+      <div class="tooltip-title">⚠ Tumor Region</div>
+      <div class="tooltip-row">
+        <span class="tooltip-key">Region</span>
+        <span class="tooltip-val" id="tt-region">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-key">Coverage</span>
+        <span class="tooltip-val" id="tt-coverage">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-key">Coords (U,V)</span>
+        <span class="tooltip-val" id="tt-coords">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-key">Confidence</span>
+        <span class="tooltip-val" id="tt-confidence">—</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- ─── Right Panel ─── -->
+  <aside class="right-panel">
+    <div class="section-label">Detection Summary</div>
+
+    <div id="alert-banner" class="alert-banner no-tumor" style="display:none;">
+      <div class="alert-title" id="alert-title">No Tumor Detected</div>
+      <div class="alert-desc" id="alert-desc">Brain tissue appears normal.</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card" id="stat-regions">
+        <div class="stat-value" id="val-regions">—</div>
+        <div class="stat-label">Tumor Regions</div>
+      </div>
+      <div class="stat-card" id="stat-coverage">
+        <div class="stat-value" id="val-coverage">—</div>
+        <div class="stat-label">Coverage %</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="val-confidence">—</div>
+        <div class="stat-label">Confidence</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="val-sample">—</div>
+        <div class="stat-label">Sample ID</div>
+      </div>
+    </div>
+
+    <div class="section-label">2D Analysis Maps</div>
+    <div class="maps-grid" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px;">
+      
+      <div class="preview-container" style="aspect-ratio: auto; min-height: 120px;">
+        <div style="padding: 6px; font-size: 11px; font-weight: bold; color: var(--accent-cyan); border-bottom: 1px solid var(--border);">RGB Spectral Graph</div>
+        <img id="map-spectral" class="preview-img" style="display:none; width: 100%; height: auto;" alt="Spectral map" />
+      </div>
+      
+      <div class="preview-container" style="aspect-ratio: auto; min-height: 120px;">
+        <div style="padding: 6px; font-size: 11px; font-weight: bold; color: var(--accent-red); border-bottom: 1px solid var(--border);">Tumor Heatmap</div>
+        <img id="map-heatmap" class="preview-img" style="display:none; width: 100%; height: auto;" alt="Heatmap" />
+      </div>
+      
+      <div class="preview-container" style="aspect-ratio: auto; min-height: 120px; flex-basis: 100%;">
+        <div style="padding: 6px; font-size: 11px; font-weight: bold; color: var(--accent-cyan); border-bottom: 1px solid var(--border);">AI Detection Overlay</div>
+        <img id="map-overlay" class="preview-img" style="display:none; width: 100%; height: auto;" alt="Overlay" />
+      </div>
+      
+      <div class="preview-container" style="aspect-ratio: auto; min-height: 120px;">
+        <div style="padding: 6px; font-size: 11px; font-weight: bold; color: var(--accent-amber); border-bottom: 1px solid var(--border);">Mean Spectral Intensity Heatmap</div>
+        <img id="map-hsi-mean" class="preview-img" style="display:none; width: 100%; height: auto;" alt="HSI Mean" />
+      </div>
+
+      <div class="preview-container" style="aspect-ratio: auto; min-height: 120px; flex-basis: 100%;">
+        <div style="padding: 6px; font-size: 11px; font-weight: bold; color: var(--accent-amber); border-bottom: 1px solid var(--border);">Mean Spectral Profile</div>
+        <img id="map-hsi-profile" class="preview-img" style="display:none; width: 100%; height: auto;" alt="HSI Profile" />
+      </div>
+
+      <div class="preview-container" style="aspect-ratio: auto; min-height: 120px;">
+        <div style="padding: 6px; font-size: 11px; font-weight: bold; color: var(--accent-amber); border-bottom: 1px solid var(--border);">Spectral Variance Heatmap</div>
+        <img id="map-hsi-variance" class="preview-img" style="display:none; width: 100%; height: auto;" alt="HSI Variance" />
+      </div>
+
+      <div class="preview-container" style="aspect-ratio: auto; min-height: 120px;">
+        <div style="padding: 6px; font-size: 11px; font-weight: bold; color: var(--accent-amber); border-bottom: 1px solid var(--border);">RGB True-Color Composite</div>
+        <img id="map-hsi-rgb" class="preview-img" style="display:none; width: 100%; height: auto;" alt="HSI RGB" />
+      </div>
+
+      <div class="preview-placeholder" id="preview-placeholder" style="aspect-ratio: 1; border: 1px dashed var(--border); border-radius: 8px;">
+        <span style="font-size:32px;">🔬</span>
+        <span>Run inference to see analysis maps</span>
+      </div>
+    </div>
+
+    <div class="section-label">Tumor Regions & Coordinates</div>
+    <div id="regions-container">
+      <div style="font-size:12px; color: var(--text-secondary); padding: 8px;">
+        No data loaded. Click a sample or load demo results.
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top: 12px;">Raw Coordinates (JSON)</div>
+    <pre id="coords-json" style="
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--accent-cyan);
+      background: var(--bg-card);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      overflow: auto;
+      max-height: 180px;
+      white-space: pre-wrap;
+    ">// Load a sample to see coordinates</pre>
+  </aside>
+</div>
+
+<!-- Notification -->
+<div class="notification" id="notification"></div>
+
+<script>
+// ─── Tab Switching Logic ───
+function switchTab(tab) {
+  document.getElementById('tab-3d').classList.remove('active');
+  document.getElementById('tab-2d').classList.remove('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  
+  const container = document.querySelector('.app-container');
+  const mainViewport = document.getElementById('viewport');
+  const rightPanel = document.querySelector('.right-panel');
+  const mapsGrid = document.querySelector('.maps-grid');
+  
+  if (tab === '3d') {
+    container.style.gridTemplateColumns = '320px 1fr 300px';
+    mainViewport.style.display = 'block';
+    rightPanel.style.display = 'flex';
+    rightPanel.style.gridColumn = '';
+    mapsGrid.style.flexDirection = 'column';
+    mapsGrid.style.flexWrap = 'nowrap';
+    document.querySelectorAll('.preview-container').forEach(el => { el.style.minWidth = 'auto'; });
+  } else {
+    container.style.gridTemplateColumns = '320px 1fr 0px'; // hide 3d viewport essentially
+    mainViewport.style.display = 'none';
+    rightPanel.style.display = 'flex';
+    // Make right panel span the rest of the layout
+    rightPanel.style.gridColumn = '2 / -1';
+    rightPanel.style.padding = '40px';
+    
+    // Make the maps lay out side-by-side
+    mapsGrid.style.flexDirection = 'row';
+    mapsGrid.style.flexWrap = 'wrap';
+    document.querySelectorAll('.preview-container').forEach(el => {
+        el.style.flex = '1';
+        el.style.minWidth = '300px';
+    });
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+// ═══════════════════════════════════════════════════════════
+//  Three.js 3D Brain Digital Twin
+// ═══════════════════════════════════════════════════════════
+
+let scene, camera, renderer, controls;
+let brainModel = null;
+let tumorSpheres = [];
+let tumorMarkers = [];
+let pulseTime = 0;
+let autoRotate = false;
+let showTumor = true;
+let showWireframe = true;
+let wireframeMesh = null;
+let labelObjects = [];
+let showLabels = false;
+let currentData = null;
+
+// Feature toggles
+const features = {
+  tumor: true,
+  wireframe: true,
+  labels: false,
+  rotate: false
+};
+
+// ─── Init Three.js ────────────────────────────────────────
+function initThree() {
+  const canvas = document.getElementById('three-canvas');
+  const viewport = document.getElementById('viewport');
+
+  scene = new THREE.Scene();
+  scene.background = null;
+
+  // Camera
+  camera = new THREE.PerspectiveCamera(45, viewport.clientWidth / viewport.clientHeight, 0.001, 1000);
+  camera.position.set(0, 0.5, 4.5);
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  // Controls
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 0.5;
+  controls.maxDistance = 10;
+  controls.autoRotate = false;
+  controls.autoRotateSpeed = 0.5;
+
+  // Lighting
+  setupLighting();
+
+  // Try to load custom brain model, fallback to default sphere
+  fetch('/brain_model').then(res => {
+    if (res.ok) {
+      loadGLB('/brain_model');
+    } else {
+      createDefaultBrain();
+    }
+  }).catch(() => createDefaultBrain());
+
+  // Animate
+  animate();
+
+  // Resize handler
+  window.addEventListener('resize', onResize);
+
+  // Hide loading after init
+  setTimeout(() => {
+    document.getElementById('loading-overlay').classList.add('hidden');
+  }, 1800);
+}
+
+function setupLighting() {
+  scene.add(new THREE.AmbientLight(0x112233, 2.0));
+
+  const directional = new THREE.DirectionalLight(0x00a8ff, 3);
+  directional.position.set(2, 3, 2);
+  directional.castShadow = true;
+  scene.add(directional);
+
+  const fill = new THREE.DirectionalLight(0x00f5d4, 1.5);
+  fill.position.set(-2, -1, -1);
+  scene.add(fill);
+
+  const rim = new THREE.DirectionalLight(0xff3d5a, 1.0);
+  rim.position.set(0, -2, -3);
+  scene.add(rim);
+
+  // Hemisphere
+  scene.add(new THREE.HemisphereLight(0x0a2040, 0x000510, 1.5));
+}
+
+function createDefaultBrain() {
+  // Placeholder brain with interesting geometry
+  const geo = new THREE.IcosahedronGeometry(0.8, 3);
+
+  // Distort vertices for brain-like shape
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const noise = 0.08 * (Math.sin(x * 8) * Math.cos(y * 7) + Math.sin(z * 9));
+    const scale = 1 + noise;
+    pos.setXYZ(i, x * scale, y * scale, z * scale);
+  }
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: 0xffd4b8,
+    roughness: 0.7,
+    metalness: 0.0,
+    transparent: true,
+    opacity: 0.7,
+    side: THREE.FrontSide,
+    envMapIntensity: 0.3,
+  });
+
+  brainModel = new THREE.Mesh(geo, mat);
+  brainModel.castShadow = true;
+  brainModel.receiveShadow = true;
+  scene.add(brainModel);
+
+  // Wireframe overlay
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: 0x00a8ff,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.05
+  });
+  wireframeMesh = new THREE.Mesh(geo.clone(), wireMat);
+  wireframeMesh.scale.setScalar(1.003);
+  scene.add(wireframeMesh);
+
+  updateModelStatus('3D Model: Default (Upload GLB for custom)');
+}
+
+// ─── Load GLB Model ───────────────────────────────────────
+function loadGLB(url, onSuccess) {
+  document.getElementById('loading-overlay').classList.remove('hidden');
+  document.getElementById('loading-text').textContent = 'LOADING 3D BRAIN MODEL...';
+
+  const loader = new GLTFLoader();
+
+  loader.load(url, (gltf) => {
+    // Remove old brain
+    if (brainModel) scene.remove(brainModel);
+    if (wireframeMesh) scene.remove(wireframeMesh);
+
+    const model = gltf.scene;
+
+    // Auto-center and scale
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = 1.3 / maxDim;
+
+    model.position.sub(center);
+    model.scale.setScalar(scale);
+
+    // Apply glass-like material to all meshes
+    model.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.material = new THREE.MeshPhysicalMaterial({
+          color: 0xffd4b8,
+          roughness: 0.65,
+          metalness: 0.05,
+          transparent: true,
+          opacity: 0.7,
+          side: THREE.DoubleSide,
+        });
+      }
+    });
+
+    brainModel = model;
+    scene.add(model);
+
+    // Wireframe
+    const wireMat = new THREE.MeshBasicMaterial({ color: 0x00a8ff, wireframe: true, transparent: true, opacity: 0.08 });
+    wireframeMesh = model.clone();
+    wireframeMesh.traverse(c => { if (c.isMesh) { c.material = wireMat; c.scale.setScalar(1.003); } });
+    scene.add(wireframeMesh);
+
+    document.getElementById('loading-overlay').classList.add('hidden');
+    updateModelStatus('3D Model: Custom GLB loaded ✓');
+
+    // Re-place any existing tumor markers
+    if (currentData) placeTumorMarkers(currentData);
+    showNotification('GLB brain model loaded successfully!', 'success');
+    if (onSuccess) onSuccess();
+  },
+  (progress) => {
+    const pct = Math.round(progress.loaded / progress.total * 100);
+    document.getElementById('loading-text').textContent = `LOADING MODEL... ${pct}%`;
+  },
+  (error) => {
+    document.getElementById('loading-overlay').classList.add('hidden');
+    showNotification('Failed to load GLB: ' + error.message, 'error');
+  });
+}
+
+// ─── Tumor Markers ────────────────────────────────────────
+function clearTumorMarkers() {
+  tumorSpheres.forEach(s => scene.remove(s));
+  tumorSpheres = [];
+  labelObjects.forEach(l => scene.remove(l));
+  labelObjects = [];
+}
+
+function placeTumorMarkers(data) {
+  clearTumorMarkers();
+  if (!data || !data.tumor_detected || !data.all_regions) return;
+
+  const box = brainModel ? new THREE.Box3().setFromObject(brainModel) : new THREE.Box3(new THREE.Vector3(-1,-1,-1), new THREE.Vector3(1,1,1));
+  const brainCenter = box.getCenter(new THREE.Vector3());
+  const brainSize   = box.getSize(new THREE.Vector3());
+
+  data.all_regions.forEach((region, i) => {
+    const u = region.u;  // 0-1 normalized X
+    const v = region.v;  // 0-1 normalized Y
+    const size = Math.max(region.size * 3, 0.02);
+
+    // Map UV to 3D brain surface coordinates
+    // u maps to X, v maps to Y, and we project outward on the Z surface
+    const phi = u * Math.PI * 2;       // azimuth
+    const theta = v * Math.PI;          // polar
+
+    const R = Math.max(brainSize.x, brainSize.y, brainSize.z) / 2;
+
+    // Push the tumor out a bit further so it doesn't get lost inside the brain mesh
+    const x = brainCenter.x + R * 0.98 * Math.sin(theta) * Math.cos(phi);
+    const y = brainCenter.y + R * 0.98 * Math.cos(theta);
+    const z = brainCenter.z + R * 0.98 * Math.sin(theta) * Math.sin(phi);
+
+    // Core tumor organic shape
+    // Area pct is typically small (0.2%), so we need a visible base scale.
+    const baseScale = Math.max(size * 15, 0.12); 
+    const radius = baseScale * R;
+    const geo = new THREE.IcosahedronGeometry(radius, 3);
+    const pos = geo.attributes.position;
+    for (let j = 0; j < pos.count; j++) {
+      const vx = pos.getX(j), vy = pos.getY(j), vz = pos.getZ(j);
+      // Add lumpy organic noise to the tumor
+      const noise = 0.4 * (Math.sin(vx * 30) * Math.cos(vy * 25) + Math.sin(vz * 35));
+      const scale = 1 + noise;
+      pos.setXYZ(j, vx * scale, vy * scale, vz * scale);
+    }
+    geo.computeVertexNormals();
+
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: 0xff2a2a,          // Bright bloody red
+      emissive: 0x8a0000,
+      emissiveIntensity: 0.8,
+      roughness: 0.6,           // Fleshy
+      metalness: 0.2,
+      clearcoat: 1.0,           // Very wet look
+      clearcoatRoughness: 0.1,
+    });
+
+    const sphere = new THREE.Mesh(geo, mat);
+    sphere.position.set(x, y, z);
+    // Random rotation so they look different
+    sphere.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+    sphere.userData = { regionIndex: i, region, isPrimary: i === 0 };
+    scene.add(sphere);
+    tumorSpheres.push(sphere);
+
+    // Point light at tumor (subtle illumination)
+    if (i === 0) {
+      const light = new THREE.PointLight(0xff0022, 1.0, R * 2);
+      light.position.copy(sphere.position);
+      scene.add(light);
+      tumorSpheres.push(light);
+    }
+  });
+}
+
+// ─── Update Panels ────────────────────────────────────────
+function updateRightPanel(data) {
+  if (!data) return;
+  currentData = data;
+
+  const tumorDetected = data.tumor_detected;
+  const banner = document.getElementById('alert-banner');
+  const alertTitle = document.getElementById('alert-title');
+  const alertDesc  = document.getElementById('alert-desc');
+
+  banner.style.display = 'block';
+  if (tumorDetected) {
+    banner.classList.remove('no-tumor');
+    alertTitle.textContent = '⚠ Tumor Detected';
+    alertDesc.textContent = `${data.all_regions?.length || 0} region(s) identified by AI model.`;
+  } else {
+    banner.classList.add('no-tumor');
+    alertTitle.textContent = '✓ No Tumor Detected';
+    alertDesc.textContent = 'Brain tissue appears within normal parameters.';
+  }
+
+  const regions = data.all_regions || [];
+  const primary = data.primary_region;
+
+  document.getElementById('val-regions').textContent = regions.length || '0';
+  document.getElementById('val-coverage').textContent = primary ? (primary.size * 100).toFixed(1) + '%' : '0%';
+  document.getElementById('val-confidence').textContent = primary ? (primary.confidence * 100).toFixed(0) + '%' : '—';
+  document.getElementById('val-sample').textContent = (data.sample_id || '—').replace('_3d_mapping', '');
+
+  // Color stat cards
+  const regCard = document.getElementById('stat-regions');
+  const covCard = document.getElementById('stat-coverage');
+  if (tumorDetected) {
+    regCard.classList.add('alert');
+    covCard.classList.add('alert');
+  } else {
+    regCard.classList.remove('alert');
+    covCard.classList.remove('alert');
+    regCard.classList.add('ok');
+    covCard.classList.add('ok');
+  }
+
+  // Regions list
+  const container = document.getElementById('regions-container');
+  if (regions.length === 0) {
+    container.innerHTML = '<div style="font-size:12px; color: var(--text-secondary); padding: 8px;">No tumor regions detected.</div>';
+  } else {
+    container.innerHTML = regions.map((r, i) => `
+      <div class="region-card" onclick="focusTumor(${i})">
+        <div class="region-header">
+          <div class="region-num">${i + 1}</div>
+          <div class="region-title">Tumor Region ${i + 1}</div>
+          <div class="region-badge">${(r.size * 100).toFixed(2)}%</div>
+        </div>
+        <div class="region-coords">
+          <div class="coord-pill"><span class="coord-key">U: </span><span class="coord-val">${r.u.toFixed(4)}</span></div>
+          <div class="coord-pill"><span class="coord-key">V: </span><span class="coord-val">${r.v.toFixed(4)}</span></div>
+          <div class="coord-pill"><span class="coord-key">BX: </span><span class="coord-val">${r.bbox_norm ? r.bbox_norm[0].toFixed(3) : '—'}</span></div>
+          <div class="coord-pill"><span class="coord-key">BY: </span><span class="coord-val">${r.bbox_norm ? r.bbox_norm[1].toFixed(3) : '—'}</span></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // JSON preview
+  document.getElementById('coords-json').textContent = JSON.stringify(data, null, 2);
+}
+
+function focusTumor(index) {
+  document.querySelectorAll('.region-card').forEach((c, i) => {
+    c.classList.toggle('focused', i === index);
+  });
+
+  if (tumorSpheres[index * 3]) {
+    const sphere = tumorSpheres[index * 3]; // Core sphere
+    const pos = sphere.position;
+    const offset = pos.clone().normalize().multiplyScalar(2.0);
+    controls.target.set(pos.x, pos.y, pos.z);
+    camera.position.set(pos.x + offset.x, pos.y + offset.y, pos.z + offset.z);
+    controls.update();
+  }
+}
+
+// ─── Animation Loop ───────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+  pulseTime += 0.016;
+
+  controls.autoRotate = features.rotate;
+  controls.update();
+
+  // Pulse tumor spheres
+  const pulseSpd = parseFloat(document.getElementById('pulse-speed').value) / 50;
+  const glowInt  = parseFloat(document.getElementById('glow-intensity').value) / 100;
+
+  tumorSpheres.forEach(obj => {
+    if (obj.isMesh && !obj.userData.isAura && !obj.userData.isRing) {
+      const pulse = 0.85 + 0.15 * Math.sin(pulseTime * pulseSpd * 4 + (obj.userData.regionIndex || 0) * 0.8);
+      obj.scale.setScalar(pulse);
+      if (obj.material.emissiveIntensity !== undefined) {
+        obj.material.emissiveIntensity = glowInt * 2.5 * pulse;
+      }
+    }
+    if (obj.userData.isAura) {
+      const pulse = 1 + 0.3 * Math.sin(pulseTime * pulseSpd * 3);
+      obj.scale.setScalar(pulse);
+      obj.material.opacity = 0.04 + 0.04 * Math.sin(pulseTime * pulseSpd * 2);
+    }
+    if (obj.userData.isRing) {
+      obj.lookAt(camera.position);
+      obj.rotation.z += 0.01 * pulseSpd;
+    }
+  });
+
+  // Brain opacity
+  const brainOpacity = parseFloat(document.getElementById('brain-opacity').value) / 100;
+  if (brainModel) {
+    brainModel.traverse(c => {
+      if (c.isMesh && c.material) c.material.opacity = brainOpacity;
+    });
+  }
+
+  renderer.render(scene, camera);
+}
+
+function onResize() {
+  const viewport = document.getElementById('viewport');
+  camera.aspect = viewport.clientWidth / viewport.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+}
+
+// ─── Controls ─────────────────────────────────────────────
+function toggleFeature(name) {
+  features[name] = !features[name];
+  document.getElementById(`btn-${name}`).classList.toggle('active', features[name]);
+
+  if (name === 'tumor') {
+    tumorSpheres.forEach(s => s.visible = features.tumor);
+  }
+  if (name === 'wireframe') {
+    if (wireframeMesh) wireframeMesh.visible = features.wireframe;
+  }
+  if (name === 'rotate') {
+    controls.autoRotate = features.rotate;
+  }
+}
+
+function resetCamera() {
+  camera.position.set(0, 0.5, 2.5);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+function setView(dir) {
+  if (dir === 'top')   camera.position.set(0, 3, 0);
+  if (dir === 'side')  camera.position.set(3, 0, 0);
+  if (dir === 'front') camera.position.set(0, 0, 3);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+// ─── Slider updates ───────────────────────────────────────
+['tumor-opacity', 'glow-intensity', 'brain-opacity', 'pulse-speed'].forEach(id => {
+  const el = document.getElementById(id);
+  const val = document.getElementById(id + '-val');
+  el.addEventListener('input', () => {
+    val.textContent = el.value + '%';
+    if (id === 'tumor-opacity') {
+      tumorSpheres.forEach(s => { if (s.isMesh && !s.userData.isAura && !s.userData.isRing && s.material) s.material.opacity = el.value / 100; });
+    }
+  });
+});
+
+// ─── GLB Upload (Removed, hardcoded to /brain_model) ────────
+
+// ─── HSI ZIP Upload ───────────────────────────────────────
+const hsiInput = document.getElementById('hsi-file-input');
+hsiInput.addEventListener('change', (e) => {
+  if (e.target.files.length > 0) handleHSIUpload(e.target.files[0]);
+});
+
+function handleHSIUpload(file) {
+  if (!file.name.endsWith('.zip')) {
+    showNotification('Must be a .zip HSI file.', 'error');
+    return;
+  }
+  showNotification('Uploading and running inference (this may take a minute)...', 'success');
+  document.getElementById('loading-overlay').classList.remove('hidden');
+  document.getElementById('loading-text').textContent = 'RUNNING AI INFERENCE...';
+  
+  const fd = new FormData();
+  fd.append('file', file);
+  
+  fetch('/upload_hsi', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('loading-overlay').classList.add('hidden');
+      if (data.error) throw new Error(data.error);
+      showNotification('Inference Complete!', 'success');
+      loadResultsList(); // Refresh sidebar list
+      
+      // Load this newly processed result
+      const sampleId = file.name.replace('.zip', '');
+      loadSampleResults(`/results/${sampleId}_3d_mapping.json`, `/results/${sampleId}_overlay.png`, sampleId);
+    })
+    .catch(err => {
+      document.getElementById('loading-overlay').classList.add('hidden');
+      showNotification(err.message, 'error');
+    });
+}
+
+// ─── Results Loading ──────────────────────────────────────
+function loadSampleResults(mappingUrl, overlayUrl, sampleId) {
+  fetch(mappingUrl)
+    .then(r => r.json())
+    .then(data => {
+      updateRightPanel(data);
+      placeTumorMarkers(data);
+
+      // Update images
+      const placeholder = document.getElementById('preview-placeholder');
+      
+      if (overlayUrl) {
+        document.getElementById('map-overlay').src = overlayUrl;
+        document.getElementById('map-overlay').style.display = 'block';
+        
+        // Construct heatmap and spectral urls by replacing _overlay
+        const heatmapUrl = overlayUrl.replace('_overlay.png', '_heatmap.png');
+        const spectralUrl = overlayUrl.replace('_overlay.png', '_spectral.png');
+        
+        const basicMaps = [
+          {id: 'map-heatmap', url: heatmapUrl},
+          {id: 'map-spectral', url: spectralUrl}
+        ];
+        
+        basicMaps.forEach(map => {
+          const el = document.getElementById(map.id);
+          if (el) {
+            el.src = map.url;
+            el.style.display = 'block';
+            el.onerror = () => { el.parentElement.style.display = 'none'; };
+            el.onload = () => { el.parentElement.style.display = 'block'; };
+          }
+        });
+        
+        // Construct advanced HSI map urls
+        const hsiMeanUrl = overlayUrl.replace('_overlay.png', '_hsi_mean.png');
+        const hsiProfileUrl = overlayUrl.replace('_overlay.png', '_hsi_profile.png');
+        const hsiVarianceUrl = overlayUrl.replace('_overlay.png', '_hsi_variance.png');
+        const hsiRgbUrl = overlayUrl.replace('_overlay.png', '_hsi_rgb.png');
+
+        const advMaps = [
+          {id: 'map-hsi-mean', url: hsiMeanUrl},
+          {id: 'map-hsi-profile', url: hsiProfileUrl},
+          {id: 'map-hsi-variance', url: hsiVarianceUrl},
+          {id: 'map-hsi-rgb', url: hsiRgbUrl}
+        ];
+
+        advMaps.forEach(map => {
+          const el = document.getElementById(map.id);
+          if (el) {
+            el.src = map.url;
+            el.style.display = 'block';
+            // Fallback for demo data which might not have these advanced maps generated yet
+            el.onerror = () => { el.parentElement.style.display = 'none'; };
+            el.onload = () => { el.parentElement.style.display = 'block'; };
+          }
+        });
+        
+        placeholder.style.display = 'none';
+      } else {
+        ['map-overlay', 'map-heatmap', 'map-spectral', 'map-hsi-mean', 'map-hsi-profile', 'map-hsi-variance', 'map-hsi-rgb'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
+        placeholder.style.display = 'flex';
+      }
+
+      showNotification(`Results loaded: ${sampleId}`, 'success');
+    })
+    .catch(err => {
+      showNotification('Failed to load results: ' + err.message, 'error');
+    });
+}
+
+// ─── Load Results List ────────────────────────────────────
+function loadResultsList() {
+  fetch('/list_results')
+    .then(r => r.json())
+    .then(items => {
+      const list = document.getElementById('sample-list');
+      if (items.length === 0) {
+        list.innerHTML = '<div style="font-size:12px; color: var(--text-secondary); padding: 8px; text-align:center;">Run inference to see results</div>';
+        return;
+      }
+
+      list.innerHTML = items.map(item => `
+        <div class="sample-item ${item.tumor_detected ? 'tumor' : 'clear'}"
+             onclick="loadSampleResults('${item.mapping_url}', '${item.overlay_url || ''}', '${item.sample_id}')">
+          <div class="sample-dot ${item.tumor_detected ? 'tumor' : 'clear'}"></div>
+          <div>
+            <div class="sample-name">${item.sample_id}</div>
+            <div class="sample-meta">${item.tumor_detected ? '⚠ Tumor detected' : '✓ Normal'}</div>
+          </div>
+        </div>
+      `).join('');
+    })
+    .catch(() => {
+      // Server not running — show offline message
+    });
+}
+
+// ─── Demo Data ────────────────────────────────────────────
+function loadDemoData() {
+  const demoData = {
+    sample_id: "DEMO-004-02",
+    tumor_detected: true,
+    primary_region: { u: 0.42, v: 0.38, size: 0.085, confidence: 0.94 },
+    all_regions: [
+      { u: 0.42, v: 0.38, size: 0.085, bbox_norm: [0.32, 0.28, 0.18, 0.20] },
+      { u: 0.68, v: 0.52, size: 0.031, bbox_norm: [0.62, 0.44, 0.10, 0.12] },
+    ],
+    total_tumor_pixels: 3542,
+    tumor_coverage_pct: 8.5
+  };
+
+  updateRightPanel(demoData);
+  placeTumorMarkers(demoData);
+
+  // Update sample list
+  const list = document.getElementById('sample-list');
+  list.innerHTML = `
+    <div class="sample-item active">
+      <div class="sample-dot tumor"></div>
+      <div>
+        <div class="sample-name">DEMO-004-02</div>
+        <div class="sample-meta">⚠ 2 tumor regions | 8.5% coverage</div>
+      </div>
+    </div>
+  `;
+
+  showNotification('Demo data loaded! 2 tumor regions placed on 3D brain.', 'success');
+}
+
+// ─── Utility ──────────────────────────────────────────────
+function updateModelStatus(text) {
+  document.getElementById('glb-status').textContent = text;
+}
+
+let notifTimeout;
+function showNotification(msg, type = 'success') {
+  const el = document.getElementById('notification');
+  el.textContent = msg;
+  el.className = `notification ${type} show`;
+  clearTimeout(notifTimeout);
+  notifTimeout = setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// ─── Init ─────────────────────────────────────────────────
+// Expose functions to window for onclick handlers
+window.toggleFeature    = toggleFeature;
+window.resetCamera      = resetCamera;
+window.setView          = setView;
+window.loadDemoData     = loadDemoData;
+window.focusTumor       = focusTumor;
+window.loadSampleResults = loadSampleResults;
+
+window.addEventListener('load', () => {
+  initThree();
+  loadResultsList();
+  setInterval(loadResultsList, 10000);  // Refresh every 10s
+  document.getElementById('model-status').textContent = 'Model: Ready';
+});
+</script>
+</body>
+</html>
