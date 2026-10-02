@@ -140,38 +140,16 @@ def generate_hsi_plots(calibrated, sample_id, mask=None):
     plt.imsave(RESULTS_DIR / f"{sample_id}_hsi_mean.png", mean_intensity, cmap="hot")
     
     # 2. Spectral Profile
+    mean_profile = calibrated.mean(axis=(0,1))
     fig = plt.figure(figsize=(10, 4))
+    plt.plot(mean_profile, color='navy')
+    plt.fill_between(range(len(mean_profile)), mean_profile, color='navy', alpha=0.3)
+    plt.title("Mean Spectral Profile")
+    plt.xlabel("Band Index")
+    plt.ylabel("Mean Intensity")
+    plt.grid(True, alpha=0.3)
     
-    if mask is not None and mask.sum() > 0:
-        # We have tumor pixels, plot them against normal pixels
-        tumor_profile = calibrated[mask == 1].mean(axis=0)
-        normal_profile = calibrated[mask == 0].mean(axis=0)
-        
-        plt.plot(normal_profile, color='dodgerblue', label='Normal Tissue')
-        plt.plot(tumor_profile, color='crimson', label='Tumor Tissue')
-        plt.fill_between(range(len(normal_profile)), normal_profile, color='dodgerblue', alpha=0.2)
-        plt.fill_between(range(len(tumor_profile)), tumor_profile, color='crimson', alpha=0.3)
-        plt.legend(loc='upper right', facecolor='#161b22', labelcolor='white')
-    else:
-        # No tumor, just plot overall mean
-        mean_profile = calibrated.mean(axis=(0,1))
-        plt.plot(mean_profile, color='navy')
-        plt.fill_between(range(len(mean_profile)), mean_profile, color='navy', alpha=0.3)
-        
-    plt.title("Mean Spectral Profile", color='white')
-    plt.xlabel("Band Index", color='white')
-    plt.ylabel("Mean Reflectance", color='white')
-    
-    # Style for dark UI
-    ax = plt.gca()
-    ax.set_facecolor("#0d1117")
-    fig.patch.set_facecolor("#0d1117")
-    ax.tick_params(colors="white")
-    for spine in ax.spines.values():
-        spine.set_edgecolor("#30363d")
-    plt.grid(True, alpha=0.3, color='#30363d')
-    
-    fig.savefig(RESULTS_DIR / f"{sample_id}_hsi_profile.png", bbox_inches="tight", facecolor=fig.get_facecolor())
+    fig.savefig(RESULTS_DIR / f"{sample_id}_hsi_profile.png", bbox_inches="tight")
     plt.close(fig)
     
     # 3. Spectral Variance Heatmap
