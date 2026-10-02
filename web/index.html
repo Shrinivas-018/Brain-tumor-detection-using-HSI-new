@@ -709,14 +709,7 @@
       <div class="upload-title">Upload HSI (.zip)</div>
       <div class="upload-sub">Upload raw .zip data to run inference</div>
       <button class="upload-btn" style="background: var(--accent-cyan);" onclick="document.getElementById('hsi-file-input').click()">Upload & Run</button>
-      <input type="file" id="hsi-file-input" accept=".zip" style="display:none;" />
-    </div>
-
-    <div class="section-label" style="margin-top: 12px;">Custom 3D Model</div>
-    <div class="upload-zone" style="background: rgba(0, 168, 255, 0.05); border-color: rgba(0, 168, 255, 0.2); padding: 12px;">
-      <div class="upload-title" style="font-size: 11px; margin-bottom: 8px;">Upload 3D Brain (.glb)</div>
-      <button class="upload-btn" style="background: var(--accent-blue); padding: 6px; font-size:10px;" onclick="document.getElementById('glb-file-input').click()">Upload GLB</button>
-      <input type="file" id="glb-file-input" accept=".glb" style="display:none;" />
+      <input type="file" id="hsi-file-input" accept=".zip" />
     </div>
 
     <div class="section-label">Detection Results</div>
@@ -1032,9 +1025,9 @@ function initThree() {
   setupLighting();
 
   // Try to load custom brain model, fallback to default sphere
-  fetch('/brain_model').then(res => {
+  fetch('/human_brain.glb').then(res => {
     if (res.ok) {
-      loadGLB('/brain_model');
+      loadGLB('/human_brain.glb');
     } else {
       createDefaultBrain();
     }
@@ -1432,28 +1425,7 @@ function setView(dir) {
   });
 });
 
-// ─── GLB Upload ───────────────────────────────────────────
-const glbInput = document.getElementById('glb-file-input');
-glbInput.addEventListener('change', (e) => {
-  if (e.target.files.length > 0) {
-    const file = e.target.files[0];
-    if (!file.name.endsWith('.glb')) {
-      showNotification('Must be a .glb file.', 'error');
-      return;
-    }
-    const fd = new FormData();
-    fd.append('file', file);
-    
-    fetch('/upload_glb', { method: 'POST', body: fd })
-      .then(r => r.json())
-      .then(data => {
-        if (data.status === 'ok') {
-          showNotification('3D model uploaded successfully!', 'success');
-          loadGLB(data.path);
-        }
-      });
-  }
-});
+// ─── GLB Upload (Removed, hardcoded to /brain_model) ────────
 
 // ─── HSI ZIP Upload ───────────────────────────────────────
 const hsiInput = document.getElementById('hsi-file-input');
